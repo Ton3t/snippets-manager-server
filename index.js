@@ -18,4 +18,9 @@ app.use("/snippet", require("./routers/snippetRouter"));
 
 // conectar a mongodb
 
-mongoose.connect(process.env.MDB_CONNECT_STRING).then(console.log("Conectado a MongoDB"));
+mongoose.connect(process.env.MDB_CONNECT_STRING).then(
+    () => {console.log("Conectado a MongoDB")},
+    err => {
+        console.log(err);
+    }
+);
