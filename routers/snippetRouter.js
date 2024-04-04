@@ -1,11 +1,15 @@
 const router = require("express").Router();
 const Snippet = require("../models/snippetModel");
+const auth = require("../middleware/auth");
 
 // recibir todos los datos de la base datos
 
-router.get("/", async (req, res) => {
+router.get("/", auth, async (req, res) => {
   try {
-    const snippets = await Snippet.find();
+    console.log(req.user);
+    // ahora le decimos q solo muester los snippets de cada usuario
+    // borrando el objeto user mostramos todos los snippets de todos los usuaios
+    const snippets = await Snippet.find({ user: req.user });
     res.json(snippets);
   } catch (err) {
     res.status(500).send();
@@ -14,12 +18,8 @@ router.get("/", async (req, res) => {
 
 // mandar datos a la api o crear un nuevo snippet
 
-router.post("/", async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
-    // recibimos la cantidad de snippets que tenemos en la base de datos
-
-    const snippetsLength = (await Snippet.find()).length;
-
     // parametros que recibimos de la web
     const { title, description, code } = req.body;
 
@@ -34,10 +34,10 @@ router.post("/", async (req, res) => {
     // construimos el nuevo snippet pasando los datos
 
     const newSnippet = new Snippet({
-      snippetId: snippetsLength,
       title,
       description,
       code,
+      user: req.user,
     });
 
     // pasamos los datos y enviamos una respuesta del objeto creado
@@ -51,7 +51,7 @@ router.post("/", async (req, res) => {
 
 // Modificar datos según el id
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   try {
     // recogemos los datos que vienen de la web
     const { title, description, code } = req.body;
@@ -67,23 +67,23 @@ router.put("/:id", async (req, res) => {
 
     // verificamos que vienen datos
     if (!snippetId) {
-      return res
-        .status(400)
-        .json({
-          errorMessage:
-            "No se identifica el ID del fragmento. Porfavor contacte con un programador.",
-        });
+      return res.status(400).json({
+        errorMessage:
+          "No se identifica el ID del fragmento. Porfavor contacte con un programador.",
+      });
     }
 
     // si vienen comparamos los datos con la base datos, si no coinciden les mandamos un error
     const originalSnippet = await Snippet.findById(snippetId);
     if (!originalSnippet) {
-      return res
-        .status(400)
-        .json({
-          errorMessage:
-            "No se ha encontrado ningún fragmento con este ID. Porfavor contacte con un programador.",
-        });
+      return res.status(400).json({
+        errorMessage:
+          "No se ha encontrado ningún fragmento con este ID. Porfavor contacte con un programador.",
+      });
+    }
+
+    if(originalSnippet.user.toString() !== req.user) {
+      return res.status(401).json({ errorMessage: "No estas autorizado."});
     }
 
     // si coninciden empezamos el proceso de actualizar los datos
@@ -93,7 +93,6 @@ router.put("/:id", async (req, res) => {
 
     const savedSnippet = await originalSnippet.save();
     res.json(savedSnippet);
-
   } catch (err) {
     res.status(500).send();
   }
@@ -101,30 +100,30 @@ router.put("/:id", async (req, res) => {
 
 // Borrar datos según el id pasado
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", auth, async (req, res) => {
   try {
     // recogemos los datos que vienen de la web
     const snippetId = req.params.id;
 
     // verificamos que vienen datos
     if (!snippetId) {
-      return res
-        .status(400)
-        .json({
-          errorMessage:
-            "No se identifica el ID del fragmento. Porfavor contacte con un programador.",
-        });
+      return res.status(400).json({
+        errorMessage:
+          "No se identifica el ID del fragmento. Porfavor contacte con un programador.",
+      });
     }
 
     // si vienen comparamos los datos con la base datos, si no coinciden les mandamos un error
     const existingSnippet = await Snippet.findById(snippetId);
     if (!existingSnippet) {
-      return res
-        .status(400)
-        .json({
-          errorMessage:
-            "No se ha encontrado ningún fragmento con este ID. Porfavor contacte con un programador.",
-        });
+      return res.status(400).json({
+        errorMessage:
+          "No se ha encontrado ningún fragmento con este ID. Porfavor contacte con un programador.",
+      });
+    }
+
+    if(existingSnippet.user.toString() !== req.user) {
+      return res.status(401).json({ errorMessage: "No estas autorizado."});
     }
 
     // si coninciden empezamos el proceso de borrar los datos
